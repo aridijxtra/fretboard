@@ -1,0 +1,356 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chord Fretboard</title>
+<style>
+  :root {
+    --bg: #f6f3ee;
+    --text: #1f1d1a;
+    --muted: #6b655c;
+    --panel: #ffffff;
+    --border: #ddd6cb;
+    --wood: #5b3a24;
+    --wood-dark: #4a2f1d;
+    --fret: #c9c4bb;
+    --nut: #efe9dc;
+    --string: #d8d2c6;
+    --inlay: #e8dfcf;
+    --root: #e0533d;
+    --third: #2f7fd1;
+    --fifth: #2f9e6a;
+    --accent: #1f1d1a;
+    --accent-text: #ffffff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #161513;
+      --text: #ece8e1;
+      --muted: #9a9389;
+      --panel: #201f1c;
+      --border: #34322e;
+      --wood: #3d2818;
+      --wood-dark: #2f1f13;
+      --accent: #ece8e1;
+      --accent-text: #161513;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    line-height: 1.4;
+    -webkit-tap-highlight-color: transparent;
+  }
+  main { max-width: 1200px; margin: 0 auto; padding: 20px 16px 40px; }
+  h1 { font-size: 1.5rem; margin: 0 0 4px; letter-spacing: -0.01em; }
+  .sub { color: var(--muted); margin: 0 0 20px; font-size: 0.95rem; }
+
+  .picker {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px;
+    display: grid;
+    gap: 10px;
+  }
+  .row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .row-label { width: 52px; font-size: 0.8rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+  .chords { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; flex: 1; min-width: 260px; }
+  .chord-btn {
+    font: inherit; font-weight: 600;
+    padding: 9px 0;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text);
+    cursor: pointer;
+  }
+  .chord-btn:hover { border-color: var(--muted); }
+  .chord-btn[aria-pressed="true"] { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+
+  .info {
+    display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+    gap: 12px; margin: 18px 0 12px;
+  }
+  .chord-name { font-size: 1.6rem; font-weight: 700; }
+  .chord-notes { color: var(--muted); font-size: 0.95rem; margin-left: 8px; font-weight: 500; }
+  .controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .legend { display: flex; gap: 12px; font-size: 0.85rem; color: var(--muted); }
+  .legend span::before {
+    content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 50%;
+    margin-right: 5px; vertical-align: -1px; background: var(--c);
+  }
+  .small-btn {
+    font: inherit; font-size: 0.85rem;
+    padding: 6px 12px; border-radius: 999px;
+    border: 1px solid var(--border); background: var(--panel); color: var(--text); cursor: pointer;
+  }
+  .small-btn:hover { border-color: var(--muted); }
+
+  .scroller {
+    overflow-x: auto;
+    border-radius: 10px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .board {
+    display: grid;
+    grid-template-columns: 52px repeat(18, minmax(48px, 1fr));
+    grid-template-rows: repeat(6, 46px) 28px;
+    min-width: 920px;
+    background: linear-gradient(180deg, var(--wood) 0%, var(--wood-dark) 100%);
+    border-radius: 10px;
+    position: relative;
+    user-select: none;
+  }
+  .inlay {
+    grid-row: 1 / 7;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 92px; pointer-events: none; z-index: 0;
+  }
+  .inlay i { width: 14px; height: 14px; border-radius: 50%; background: var(--inlay); opacity: 0.55; }
+  .cell {
+    position: relative; z-index: 1;
+    display: flex; align-items: center; justify-content: center;
+    border-right: 3px solid var(--fret);
+  }
+  .cell.open { border-right: 8px solid var(--nut); background: rgba(0,0,0,0.25); }
+  .cell::before {
+    content: ""; position: absolute; left: 0; right: 0; top: 50%;
+    height: var(--h); transform: translateY(-50%);
+    background: var(--string); opacity: 0.85;
+    box-shadow: 0 1px 1px rgba(0,0,0,0.4);
+  }
+  .note {
+    position: relative; z-index: 2;
+    width: 36px; height: 36px; border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.85);
+    background: var(--c); color: #fff;
+    font: 700 0.8rem/1 system-ui, sans-serif;
+    cursor: pointer; padding: 0;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+    transition: transform 0.08s;
+  }
+  .note:active { transform: scale(0.92); }
+  .note.ping { animation: ping 0.5s ease-out; }
+  @keyframes ping {
+    0% { box-shadow: 0 0 0 0 var(--c); }
+    100% { box-shadow: 0 0 0 14px transparent; }
+  }
+  .fretnum {
+    grid-row: 7;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.75rem; color: #e9e0d0; opacity: 0.8;
+    background: rgba(0,0,0,0.25);
+  }
+  .fretnum.first { border-bottom-left-radius: 10px; }
+  .fretnum.last { border-bottom-right-radius: 10px; }
+
+  .status {
+    margin-top: 12px; min-height: 1.4em;
+    font-variant-numeric: tabular-nums; color: var(--muted); font-size: 0.95rem;
+  }
+  .status b { color: var(--text); }
+  .hint { color: var(--muted); font-size: 0.8rem; margin-top: 6px; }
+  @media (min-width: 980px) { .hint.scroll { display: none; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Chord Fretboard</h1>
+  <p class="sub">Pick a chord to see every root, third and fifth up to fret 18. Tap a note to hear it.</p>
+
+  <section class="picker" aria-label="Choose a chord">
+    <div class="row"><div class="row-label">Major</div><div class="chords" id="major"></div></div>
+    <div class="row"><div class="row-label">Minor</div><div class="chords" id="minor"></div></div>
+  </section>
+
+  <div class="info">
+    <div class="chord-name" id="chordName"></div>
+    <div class="controls">
+      <div class="legend">
+        <span style="--c: var(--root)">Root</span>
+        <span style="--c: var(--third)" id="thirdLabel">3rd</span>
+        <span style="--c: var(--fifth)">5th</span>
+      </div>
+      <button class="small-btn" id="labelToggle" type="button">Show intervals</button>
+      <button class="small-btn" id="playChord" type="button">▶ Play chord</button>
+    </div>
+  </div>
+
+  <div class="scroller">
+    <div class="board" id="board" role="group" aria-label="Guitar fretboard"></div>
+  </div>
+  <div class="status" id="status" aria-live="polite"></div>
+  <div class="hint scroll">Swipe the fretboard sideways to see all 18 frets.</div>
+</main>
+
+<script>
+  const NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+  const ROOTS = ['C','D','E','F','G','A','B'];
+  // Standard tuning, high E on top (MIDI numbers): E4 B3 G3 D3 A2 E2
+  const STRINGS = [64, 59, 55, 50, 45, 40];
+  const STRING_THICKNESS = [1.5, 2, 2.5, 3, 3.5, 4.5];
+  const FRETS = 18;
+  const INLAYS = { 3: 1, 5: 1, 7: 1, 9: 1, 12: 2, 15: 1, 17: 1 };
+  const QUALITIES = {
+    major: { suffix: '',  label: 'major', intervals: [0, 4, 7], names: ['R', '3', '5'] },
+    minor: { suffix: 'm', label: 'minor', intervals: [0, 3, 7], names: ['R', '♭3', '5'] },
+  };
+  const ROLE_COLORS = ['var(--root)', 'var(--third)', 'var(--fifth)'];
+
+  let current = { root: 'C', quality: 'major' };
+  let showIntervals = false;
+
+  const freq = midi => 440 * Math.pow(2, (midi - 69) / 12);
+  const noteName = midi => NOTE_NAMES[midi % 12] + (Math.floor(midi / 12) - 1);
+
+  // ---------- Audio ----------
+  let ctx, out;
+  function audio() {
+    if (!ctx) {
+      ctx = new (window.AudioContext || window.webkitAudioContext)();
+      out = ctx.createDynamicsCompressor();
+      out.connect(ctx.destination);
+    }
+    if (ctx.state === 'suspended') ctx.resume();
+    return ctx;
+  }
+  function playMidi(midi, when = 0) {
+    const ac = audio();
+    const t = ac.currentTime + when;
+    const osc = ac.createOscillator();
+    const gain = ac.createGain();
+    osc.type = 'triangle';
+    osc.frequency.value = freq(midi);
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(0.35, t + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 1.6);
+    osc.connect(gain).connect(out);
+    osc.start(t);
+    osc.stop(t + 1.7);
+  }
+
+  // ---------- Chord picker ----------
+  function buildPicker() {
+    for (const q of Object.keys(QUALITIES)) {
+      const wrap = document.getElementById(q);
+      for (const r of ROOTS) {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'chord-btn';
+        b.textContent = r + QUALITIES[q].suffix;
+        b.dataset.root = r;
+        b.dataset.quality = q;
+        b.addEventListener('click', () => selectChord(r, q));
+        wrap.appendChild(b);
+      }
+    }
+  }
+
+  function chordPitchClasses() {
+    const rootPc = NOTE_NAMES.indexOf(current.root);
+    return QUALITIES[current.quality].intervals.map(i => (rootPc + i) % 12);
+  }
+
+  function selectChord(root, quality) {
+    current = { root, quality };
+    document.querySelectorAll('.chord-btn').forEach(b => {
+      b.setAttribute('aria-pressed', b.dataset.root === root && b.dataset.quality === quality);
+    });
+    const q = QUALITIES[quality];
+    const pcs = chordPitchClasses();
+    document.getElementById('chordName').innerHTML =
+      `${root} ${q.label}<span class="chord-notes">${pcs.map(p => NOTE_NAMES[p]).join(' – ')}</span>`;
+    document.getElementById('thirdLabel').textContent = quality === 'minor' ? '♭3rd' : '3rd';
+    history.replaceState(null, '', '#' + root + q.suffix);
+    document.getElementById('status').textContent = '';
+    renderBoard();
+  }
+
+  // ---------- Fretboard ----------
+  function renderBoard() {
+    const board = document.getElementById('board');
+    board.innerHTML = '';
+    const pcs = chordPitchClasses();
+    const q = QUALITIES[current.quality];
+
+    for (const [fret, count] of Object.entries(INLAYS)) {
+      const d = document.createElement('div');
+      d.className = 'inlay';
+      d.style.gridColumn = Number(fret) + 1;
+      for (let i = 0; i < count; i++) d.appendChild(document.createElement('i'));
+      board.appendChild(d);
+    }
+
+    STRINGS.forEach((open, s) => {
+      for (let f = 0; f <= FRETS; f++) {
+        const cell = document.createElement('div');
+        cell.className = 'cell' + (f === 0 ? ' open' : '');
+        cell.style.gridRow = s + 1;
+        cell.style.gridColumn = f + 1;
+        cell.style.setProperty('--h', STRING_THICKNESS[s] + 'px');
+
+        const midi = open + f;
+        const role = pcs.indexOf(midi % 12);
+        if (role !== -1) {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'note';
+          btn.style.setProperty('--c', ROLE_COLORS[role]);
+          btn.dataset.note = NOTE_NAMES[midi % 12];
+          btn.dataset.interval = q.names[role];
+          btn.textContent = showIntervals ? q.names[role] : NOTE_NAMES[midi % 12];
+          btn.setAttribute('aria-label', `${noteName(midi)}, string ${s + 1}, fret ${f}`);
+          btn.addEventListener('click', () => {
+            playMidi(midi);
+            btn.classList.remove('ping');
+            void btn.offsetWidth;
+            btn.classList.add('ping');
+            document.getElementById('status').innerHTML =
+              `<b>${noteName(midi)}</b> · ${freq(midi).toFixed(2)} Hz · string ${s + 1}, fret ${f} · ${q.names[role] === 'R' ? 'root' : q.names[role]}`;
+          });
+          cell.appendChild(btn);
+        }
+        board.appendChild(cell);
+      }
+    });
+
+    for (let f = 0; f <= FRETS; f++) {
+      const n = document.createElement('div');
+      n.className = 'fretnum' + (f === 0 ? ' first' : '') + (f === FRETS ? ' last' : '');
+      n.style.gridColumn = f + 1;
+      n.textContent = f === 0 ? 'open' : f;
+      board.appendChild(n);
+    }
+  }
+
+  // ---------- Controls ----------
+  document.getElementById('labelToggle').addEventListener('click', e => {
+    showIntervals = !showIntervals;
+    e.currentTarget.textContent = showIntervals ? 'Show note names' : 'Show intervals';
+    document.querySelectorAll('.note').forEach(n => {
+      n.textContent = showIntervals ? n.dataset.interval : n.dataset.note;
+    });
+  });
+
+  document.getElementById('playChord').addEventListener('click', () => {
+    // Root in octave 3, then third and fifth above it, then the root an octave up
+    const rootMidi = 48 + NOTE_NAMES.indexOf(current.root);
+    const steps = [...QUALITIES[current.quality].intervals, 12];
+    steps.forEach((iv, i) => playMidi(rootMidi + iv, i * 0.18));
+    const q = QUALITIES[current.quality];
+    document.getElementById('status').innerHTML = `<b>${current.root}${q.suffix}</b> · ` +
+      steps.map(iv => `${noteName(rootMidi + iv)} ${freq(rootMidi + iv).toFixed(2)} Hz`).join(' · ');
+  });
+
+  // ---------- Start ----------
+  buildPicker();
+  const m = location.hash.match(/^#([A-G])(m?)$/);
+  selectChord(m ? m[1] : 'C', m && m[2] ? 'minor' : 'major');
+</script>
+</body>
+</html>
